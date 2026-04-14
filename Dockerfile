@@ -1,5 +1,7 @@
 FROM alpine:3.20
 
+ENV TZ=Europe/Moscow
+
 RUN apk add --no-cache \
     postfix \
     dovecot \
@@ -12,6 +14,7 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata
 
+# ===== базовые директории =====
 RUN mkdir -p \
     /etc/rspamd \
     /var/lib/rspamd \
@@ -20,13 +23,15 @@ RUN mkdir -p \
     /var/spool/postfix \
     /var/spool/postfix/private
 
-RUN addgroup -S mail || true \
- && addgroup -S postfix || true \
- && addgroup -S dovecot || true \
- && adduser -S mail -G mail || true \
- && adduser -S postfix -G postfix || true \
- && adduser -S dovecot -G dovecot || true
+# ===== users/groups (ВАЖНО для стабильности в Alpine) =====
+RUN addgroup -S mail || true && adduser -S mail -G mail || true \
+ && addgroup -S postfix || true && adduser -S postfix -G postfix || true \
+ && addgroup -S dovecot || true && adduser -S dovecot -G dovecot || true
 
+# ===== fix permissions =====
+RUN chown -R postfix:postfix /var/spool/postfix || true
+
+# ===== supervisor =====
 COPY supervisord.conf /etc/supervisord.conf
 
 EXPOSE 25 587 143 993

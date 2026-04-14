@@ -28,23 +28,27 @@ RUN addgroup -S mail && adduser -S mail -G mail || true \
  && addgroup -S postfix && adduser -S postfix -G postfix || true \
  && addgroup -S dovecot && adduser -S dovecot -G dovecot || true
 
-# права на maildir
+# права на mail storage
 RUN chown -R dovecot:mail /var/mail/vhosts
 
-# Postfix → LMTP delivery
+# Postfix → LMTP доставка в Dovecot
 RUN postconf -e "mailbox_transport=lmtp:unix:private/lmtp"
 
-# Dovecot mail config
+# Dovecot конфиг maildir
 RUN printf "mail_location = maildir:/var/mail/vhosts/%%d/%%n/Maildir\n" \
 "mail_home = /var/mail/vhosts/%%d/%%n\n" \
+"mail_uid = dovecot\n" \
+"mail_gid = mail\n" \
 "mail_privileged_group = mail\n" \
-"namespace inbox {\n  inbox = yes\n}\n" \
+"mail_full_filesystem_access = yes\n" \
+"namespace inbox {\n  inbox = yes\n  mailbox Drafts {\n    special_use = \\Drafts\n  }\n  mailbox Junk {\n    special_use = \\Junk\n  }\n  mailbox Sent {\n    special_use = \\Sent\n  }\n  mailbox Trash {\n    special_use = \\Trash\n  }\n}\n" \
 > /etc/dovecot/conf.d/10-mail.conf
 
-# 🔥 FIX: bootstrap Maildir so LMTP has a target
-RUN mkdir -p /var/mail/vhosts/default.local/user/Maildir/cur \
- && mkdir -p /var/mail/vhosts/default.local/user/Maildir/new \
- && mkdir -p /var/mail/vhosts/default.local/user/Maildir/tmp \
+# bootstrap базовой структуры (на всякий случай)
+RUN mkdir -p \
+    /var/mail/vhosts/default.local/user/Maildir/cur \
+    /var/mail/vhosts/default.local/user/Maildir/new \
+    /var/mail/vhosts/default.local/user/Maildir/tmp \
  && chown -R dovecot:mail /var/mail/vhosts
 
 COPY supervisord.conf /etc/supervisord.conf

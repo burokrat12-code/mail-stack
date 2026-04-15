@@ -54,6 +54,16 @@ RUN mkdir -p \
     /var/mail/vhosts/default.local/user/Maildir/tmp \
  && chown -R dovecot:mail /var/mail/vhosts
 
+# OpenDKIM: генерация ключей и права
+RUN cd /etc/opendkim/keys/cargo-port.eu && \
+    opendkim-genkey -s mail -d cargo-port.eu && \
+    chmod 755 /etc && \
+    chmod 755 /etc/opendkim && \
+    chmod 755 /etc/opendkim/keys && \
+    chmod 755 /etc/opendkim/keys/cargo-port.eu && \
+    chmod 600 /etc/opendkim/keys/cargo-port.eu/mail.private && \
+    chown -R root:root /etc/opendkim
+
 COPY supervisord.conf /etc/supervisord.conf
 
 COPY configs/opendkim/opendkim.conf /etc/opendkim.conf

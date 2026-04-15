@@ -61,9 +61,9 @@ RUN mkdir -p \
 # Шаблон main.cf с переменными
 RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
     echo 'mydomain = ${DOMAIN}' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'myorigin = $mydomain' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'myorigin = ${DOMAIN}' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'mydestination = ${HOSTNAME}, localhost.${DOMAIN}, localhost, ${DOMAIN}' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'inet_interfaces = all' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'inet_protocols = ipv4' >> /etc/postfix/templates/main.cf.tpl && \

@@ -10,6 +10,8 @@ RUN apk add --no-cache \
     supervisor \
     bash \
     ca-certificates \
+    opendkim \
+    opendkim-utils \
     tzdata
 
 # системные директории
@@ -52,6 +54,8 @@ RUN mkdir -p \
  && chown -R dovecot:mail /var/mail/vhosts
 
 COPY supervisord.conf /etc/supervisord.conf
+
+COPY configs/opendkim/opendkim.conf /etc/opendkim.conf
 
 EXPOSE 25 587 143 993
 

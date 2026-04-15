@@ -59,8 +59,8 @@ RUN mkdir -p \
  && chown -R dovecot:mail /var/mail/vhosts
 
 # Шаблон main.cf с переменными
-RUN echo 'myhostname = ${HOSTNAME:-mail.${DOMAIN:-cargo-port.eu}}' > /etc/postfix/templates/main.cf.tpl && \
-    echo 'mydomain = ${DOMAIN:-cargo-port.eu}' >> /etc/postfix/templates/main.cf.tpl && \
+RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
+    echo 'mydomain = ${DOMAIN}' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'myorigin = $mydomain' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain' >> /etc/postfix/templates/main.cf.tpl && \
@@ -70,7 +70,7 @@ RUN echo 'myhostname = ${HOSTNAME:-mail.${DOMAIN:-cargo-port.eu}}' > /etc/postfi
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'mynetworks = 127.0.0.0/8, 192.168.254.0/24' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'relayhost = ${RELAYHOST:-[smtp.gmail.com]:587}' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'relayhost = ${RELAYHOST}' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtp_sasl_auth_enable = yes' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtp_sasl_mechanism_filter = plain, login' >> /etc/postfix/templates/main.cf.tpl && \
@@ -101,20 +101,23 @@ RUN echo 'myhostname = ${HOSTNAME:-mail.${DOMAIN:-cargo-port.eu}}' > /etc/postfi
     echo 'compatibility_level = 3.9' >> /etc/postfix/templates/main.cf.tpl
 
 # Шаблон opendkim.conf
-RUN echo 'Domain                  ${DOMAIN:-cargo-port.eu}' > /etc/opendkim.conf.tpl && \
-    echo 'KeyFile                 /etc/opendkim/keys/${DOMAIN:-cargo-port.eu}/mail.private' >> /etc/opendkim.conf.tpl && \
+RUN echo 'Domain                  ${DOMAIN}' > /etc/opendkim.conf.tpl && \
+    echo 'KeyFile                 /etc/opendkim/keys/${DOMAIN}/mail.private' >> /etc/opendkim.conf.tpl && \
     echo 'Selector                mail' >> /etc/opendkim.conf.tpl && \
     echo 'Socket                  inet:8891@localhost' >> /etc/opendkim.conf.tpl && \
     echo 'UserID                  root' >> /etc/opendkim.conf.tpl
 
-# Скрипт инициализации
+# Скрипт инициализации с export
 RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '' >> /etc/init.sh && \
-    echo 'DOMAIN=${DOMAIN:-cargo-port.eu}' >> /etc/init.sh && \
-    echo 'HOSTNAME=${HOSTNAME:-mail.$DOMAIN}' >> /etc/init.sh && \
-    echo 'RELAYHOST=${RELAYHOST:-[smtp.gmail.com]:587}' >> /etc/init.sh && \
+    echo 'export DOMAIN=${DOMAIN:-cargo-port.eu}' >> /etc/init.sh && \
+    echo 'export HOSTNAME=${HOSTNAME:-mail.$DOMAIN}' >> /etc/init.sh && \
+    echo 'export RELAYHOST=${RELAYHOST:-[smtp.gmail.com]:587}' >> /etc/init.sh && \
+    echo 'export GMAIL_AUTH=${GMAIL_AUTH}' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'echo "Initializing mail stack for domain: $DOMAIN"' >> /etc/init.sh && \
+    echo 'echo "Hostname: $HOSTNAME"' >> /etc/init.sh && \
+    echo 'echo "Relayhost: $RELAYHOST"' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'envsubst < /etc/postfix/templates/main.cf.tpl > /etc/postfix/main.cf' >> /etc/init.sh && \
     echo 'envsubst < /etc/opendkim.conf.tpl > /etc/opendkim.conf' >> /etc/init.sh && \
@@ -139,6 +142,7 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    chmod 600 /etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    postmap lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
+    echo '    echo "Gmail SASL auth configured"' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'postfix reload' >> /etc/init.sh && \

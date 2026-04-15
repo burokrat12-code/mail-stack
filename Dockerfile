@@ -142,6 +142,7 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    chmod 600 /etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    postmap lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
+    echo '    postconf -e smtp_sasl_password_maps=lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    echo "Gmail SASL auth configured"' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \

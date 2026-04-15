@@ -23,6 +23,7 @@ RUN mkdir -p \
     /var/spool/postfix \
     /var/spool/postfix/private \
     /var/mail/vhosts/default.local/user \
+    /etc/opendkim/keys/cargo-port.eu \
     /etc/dovecot/conf.d
 
 # пользователи

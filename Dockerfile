@@ -157,13 +157,13 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$RECORD_ID" \' >> /etc/init.sh && \
     echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
     echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
-    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\",\"ttl\":3600}" > /dev/null' >> /etc/init.sh && \
+    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
     echo '            echo "DKIM record updated in Cloudflare"' >> /etc/init.sh && \
     echo '        else' >> /etc/init.sh && \
     echo '            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \' >> /etc/init.sh && \
     echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
     echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
-    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\",\"ttl\":3600}" > /dev/null' >> /etc/init.sh && \
+    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
     echo '            echo "DKIM record created in Cloudflare"' >> /etc/init.sh && \
     echo '        fi' >> /etc/init.sh && \
     echo '    fi' >> /etc/init.sh && \

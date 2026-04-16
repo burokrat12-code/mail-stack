@@ -15,7 +15,9 @@ RUN apk add --no-cache \
     sed \
     grep \
     curl \
-    fail2ban
+    fail2ban \
+    opendkim \
+    opendkim-utils
 
 # Настройка часового пояса
 ENV TZ=Europe/Moscow
@@ -202,6 +204,7 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    mkdir -p /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \
     echo '    cd /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \
     echo '    opendkim-genkey -s mail -d $DOMAIN' >> /etc/init.sh && \
+    echo '    chmod 600 mail.private' >> /etc/init.sh && \
     echo '    echo "=== DKIM DNS record for $DOMAIN ==="' >> /etc/init.sh && \
     echo '    cat mail.txt' >> /etc/init.sh && \
     echo '    echo "=================================="' >> /etc/init.sh && \

@@ -28,7 +28,8 @@ RUN mkdir -p \
     /var/mail/vhosts/default.local/user \
     /etc/opendkim/keys/template \
     /etc/dovecot/conf.d \
-    /etc/postfix/templates
+    /etc/postfix/templates \
+    /etc/dovecot.orig
 
 # пользователи
 RUN addgroup -S mail && adduser -S mail -G mail || true \
@@ -50,6 +51,9 @@ RUN printf "mail_location = maildir:/var/mail/vhosts/%%d/%%n/Maildir\n" \
 "mail_full_filesystem_access = yes\n" \
 "namespace inbox {\n  inbox = yes\n  mailbox Drafts {\n    special_use = \\Drafts\n  }\n  mailbox Junk {\n    special_use = \\Junk\n  }\n  mailbox Sent {\n    special_use = \\Sent\n  }\n  mailbox Trash {\n    special_use = \\Trash\n  }\n}\n" \
 > /etc/dovecot/conf.d/10-mail.conf
+
+# Сохраняем оригинальные конфиги Dovecot
+RUN cp -r /etc/dovecot /etc/dovecot.orig
 
 # bootstrap базовой структуры
 RUN mkdir -p \
@@ -120,6 +124,12 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo 'echo "Hostname: $HOSTNAME"' >> /etc/init.sh && \
     echo 'echo "Relayhost: $RELAYHOST"' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
+    echo '# Восстановление конфигов Dovecot из оригиналов если маунт пустой' >> /etc/init.sh && \
+    echo 'if [ ! -f /etc/dovecot/dovecot.conf ]; then' >> /etc/init.sh && \
+    echo '    echo "Restoring default dovecot config from /etc/dovecot.orig"' >> /etc/init.sh && \
+    echo '    cp -r /etc/dovecot.orig/* /etc/dovecot/' >> /etc/init.sh && \
+    echo 'fi' >> /etc/init.sh && \
+    echo '' >> /etc/init.sh && \
     echo 'envsubst < /etc/postfix/templates/main.cf.tpl > /etc/postfix/main.cf' >> /etc/init.sh && \
     echo 'envsubst < /etc/opendkim.conf.tpl > /etc/opendkim.conf' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
@@ -156,7 +166,7 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo 'postfix reload' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'echo "Mail stack initialized"' >> /etc/init.sh
-    
+
 RUN chmod +x /etc/init.sh
 
 COPY supervisord.conf /etc/supervisord.conf

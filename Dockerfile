@@ -53,7 +53,7 @@ RUN printf "mail_location = maildir:/var/mail/vhosts/%%d/%%n/Maildir\n" \
 > /etc/dovecot/conf.d/10-mail.conf
 
 # Сохраняем оригинальные конфиги Dovecot
-RUN cp -r /etc/dovecot /etc/dovecot.orig
+RUN mkdir -p /etc/dovecot.orig && cp -r /etc/dovecot/* /etc/dovecot.orig
 
 # bootstrap базовой структуры
 RUN mkdir -p \

@@ -56,6 +56,28 @@ RUN printf "mail_location = maildir:/var/mail/vhosts/%%d/%%n/Maildir\n" \
 # Сохраняем оригинальные конфиги Dovecot
 RUN mkdir -p /etc/dovecot.orig && cp -r /etc/dovecot/* /etc/dovecot.orig
 
+# Настройка квот и автоочистки Trash
+RUN cat > /etc/dovecot/conf.d/90-quota.conf << 'EOF'
+mail_plugins = $mail_plugins quota
+
+protocol imap {
+  mail_plugins = $mail_plugins imap_quota
+}
+
+plugin {
+  quota_rule = *:storage=3G
+  quota_rule2 = Trash:storage=+300M
+}
+EOF
+
+RUN cat > /etc/dovecot/conf.d/15-mailboxes.conf << 'EOF'
+namespace inbox {
+  mailbox Trash {
+    autoexpunge = 30d
+  }
+}
+EOF
+
 # bootstrap базовой структуры
 RUN mkdir -p \
     /var/mail/vhosts/default.local/user/Maildir/cur \

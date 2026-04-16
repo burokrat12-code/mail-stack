@@ -156,9 +156,15 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '/usr/sbin/opendkim -f -x /etc/opendkim.conf &' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'if [ ! -z "$GMAIL_AUTH" ]; then' >> /etc/init.sh && \
-    echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /etc/postfix/sasl_passwd' >> /etc/init.sh && \
-    echo '    chmod 600 /etc/postfix/sasl_passwd' >> /etc/init.sh && \
-    echo '    postmap lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
+    echo '    # Создаём временный файл с паролем' >> /etc/init.sh && \
+    echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /tmp/sasl_passwd' >> /etc/init.sh && \
+    echo '    chmod 600 /tmp/sasl_passwd' >> /etc/init.sh && \
+    echo '    # Создаём хешированную базу данных' >> /etc/init.sh && \
+    echo '    postmap lmdb:/tmp/sasl_passwd' >> /etc/init.sh && \
+    echo '    # Копируем базу в нужное место' >> /etc/init.sh && \
+    echo '    cp /tmp/sasl_passwd.lmdb /etc/postfix/sasl_passwd.lmdb' >> /etc/init.sh && \
+    echo '    # Удаляем временный файл с открытым паролем' >> /etc/init.sh && \
+    echo '    rm -f /tmp/sasl_passwd /tmp/sasl_passwd.lmdb' >> /etc/init.sh && \
     echo '    postconf -e smtp_sasl_password_maps=lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    echo "Gmail SASL auth configured"' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \

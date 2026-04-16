@@ -141,7 +141,7 @@ RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
     echo 'smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_tls_security_level = may' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'smtpd_tls_auth_only = yes' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'smtpd_tls_auth_only = no' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_sasl_auth_enable = yes' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_sasl_type = dovecot' >> /etc/postfix/templates/main.cf.tpl && \
@@ -223,6 +223,27 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '        fi' >> /etc/init.sh && \
     echo '    fi' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
+    echo '' >> /etc/init.sh && \
+    echo '# Создание конфига Dovecot для аутентификации' >> /etc/init.sh && \
+    echo 'cat > /etc/dovecot/conf.d/10-master.conf << "EOF"' >> /etc/init.sh && \
+    echo 'service auth {' >> /etc/init.sh && \
+    echo '  unix_listener /var/spool/postfix/private/auth {' >> /etc/init.sh && \
+    echo '    mode = 0660' >> /etc/init.sh && \
+    echo '    user = postfix' >> /etc/init.sh && \
+    echo '    group = postfix' >> /etc/init.sh && \
+    echo '  }' >> /etc/init.sh && \
+    echo '}' >> /etc/init.sh && \
+    echo 'EOF' >> /etc/init.sh && \
+    echo '' >> /etc/init.sh && \
+    echo '# Добавление порта 587 в master.cf' >> /etc/init.sh && \
+    echo 'cat >> /etc/postfix/master.cf << "EOF"' >> /etc/init.sh && \
+    echo '587      inet  n       -       n       -       -       smtpd' >> /etc/init.sh && \
+    echo '  -o smtpd_tls_wrappermode=no' >> /etc/init.sh && \
+    echo '  -o smtpd_sasl_auth_enable=yes' >> /etc/init.sh && \
+    echo '  -o smtpd_sasl_type=dovecot' >> /etc/init.sh && \
+    echo '  -o smtpd_sasl_path=private/auth' >> /etc/init.sh && \
+    echo '  -o smtpd_tls_security_level=may' >> /etc/init.sh && \
+    echo 'EOF' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'chmod 755 /etc /etc/opendkim /etc/opendkim/keys' >> /etc/init.sh && \
     echo 'chmod 755 /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \

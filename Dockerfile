@@ -57,48 +57,40 @@ RUN printf "mail_location = maildir:/var/mail/vhosts/%%d/%%n/Maildir\n" \
 RUN mkdir -p /etc/dovecot.orig && cp -r /etc/dovecot/* /etc/dovecot.orig
 
 # Настройка квот и автоочистки Trash
-RUN cat > /etc/dovecot/conf.d/90-quota.conf << 'EOF'
-mail_plugins = $mail_plugins quota
-
-protocol imap {
-  mail_plugins = $mail_plugins imap_quota
-}
-
-plugin {
-  quota_rule = *:storage=3G
-  quota_rule2 = Trash:storage=+300M
-}
-EOF
+RUN echo 'mail_plugins = $mail_plugins quota' > /etc/dovecot/conf.d/90-quota.conf && \
+    echo '' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo 'protocol imap {' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '  mail_plugins = $mail_plugins imap_quota' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '}' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo 'plugin {' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '  quota_rule = *:storage=3G' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '  quota_rule2 = Trash:storage=+300M' >> /etc/dovecot/conf.d/90-quota.conf && \
+    echo '}' >> /etc/dovecot/conf.d/90-quota.conf
 
 # Настройка Rspamd (спам-фильтр)
-RUN cat > /etc/rspamd/local.d/actions.conf << 'EOF'
-reject = 15;
-add_header = 6;
-spam = 6;
-EOF
+RUN echo 'reject = 15;' > /etc/rspamd/local.d/actions.conf && \
+    echo 'add_header = 6;' >> /etc/rspamd/local.d/actions.conf && \
+    echo 'spam = 6;' >> /etc/rspamd/local.d/actions.conf
 
 # Настройка Sieve для перемещения спама в Junk
 RUN mkdir -p /etc/dovecot/sieve && \
-    cat > /etc/dovecot/sieve/default.sieve << 'EOF'
-require ["fileinto"];
-if header :contains "X-Spam" "Yes" {
-    fileinto "Junk";
-    stop;
-}
-EOF
+    echo 'require ["fileinto"];' > /etc/dovecot/sieve/default.sieve && \
+    echo 'if header :contains "X-Spam" "Yes" {' >> /etc/dovecot/sieve/default.sieve && \
+    echo '    fileinto "Junk";' >> /etc/dovecot/sieve/default.sieve && \
+    echo '    stop;' >> /etc/dovecot/sieve/default.sieve && \
+    echo '}' >> /etc/dovecot/sieve/default.sieve
 RUN sievec /etc/dovecot/sieve/default.sieve
 
 # Настройка автоочистки Trash и Junk
-RUN cat > /etc/dovecot/conf.d/15-mailboxes.conf << 'EOF'
-namespace inbox {
-  mailbox Trash {
-    autoexpunge = 30d
-  }
-  mailbox Junk {
-    autoexpunge = 30d
-  }
-}
-EOF
+RUN echo 'namespace inbox {' > /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '  mailbox Trash {' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '    autoexpunge = 30d' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '  }' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '  mailbox Junk {' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '    autoexpunge = 30d' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '  }' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
+    echo '}' >> /etc/dovecot/conf.d/15-mailboxes.conf
 
 # bootstrap базовой структуры
 RUN mkdir -p \

@@ -113,26 +113,24 @@ RUN echo 'namespace inbox {' > /etc/dovecot/conf.d/15-mailboxes.conf && \
 RUN mkdir -p /etc/fail2ban/jail.d && \
     touch /var/log/mail.log /var/log/dovecot/dovecot.log && \
     chmod 644 /var/log/mail.log /var/log/dovecot/dovecot.log && \
-    cat > /etc/fail2ban/jail.local << 'EOF'
-[DEFAULT]
-bantime = 1h
-findtime = 10m
-maxretry = 5
-
-[sshd]
-enabled = false
-
-[sshd-ddos]
-enabled = false
-
-[dovecot]
-enabled = true
-logpath = /var/log/dovecot/dovecot.log
-
-[postfix-sasl]
-enabled = true
-logpath = /var/log/mail.log
-EOF
+    echo '[DEFAULT]' > /etc/fail2ban/jail.local && \
+    echo 'bantime = 1h' >> /etc/fail2ban/jail.local && \
+    echo 'findtime = 10m' >> /etc/fail2ban/jail.local && \
+    echo 'maxretry = 5' >> /etc/fail2ban/jail.local && \
+    echo '' >> /etc/fail2ban/jail.local && \
+    echo '[sshd]' >> /etc/fail2ban/jail.local && \
+    echo 'enabled = false' >> /etc/fail2ban/jail.local && \
+    echo '' >> /etc/fail2ban/jail.local && \
+    echo '[sshd-ddos]' >> /etc/fail2ban/jail.local && \
+    echo 'enabled = false' >> /etc/fail2ban/jail.local && \
+    echo '' >> /etc/fail2ban/jail.local && \
+    echo '[dovecot]' >> /etc/fail2ban/jail.local && \
+    echo 'enabled = true' >> /etc/fail2ban/jail.local && \
+    echo 'logpath = /var/log/dovecot/dovecot.log' >> /etc/fail2ban/jail.local && \
+    echo '' >> /etc/fail2ban/jail.local && \
+    echo '[postfix-sasl]' >> /etc/fail2ban/jail.local && \
+    echo 'enabled = true' >> /etc/fail2ban/jail.local && \
+    echo 'logpath = /var/log/mail.log' >> /etc/fail2ban/jail.local
 
 # bootstrap базовой структуры
 RUN mkdir -p \

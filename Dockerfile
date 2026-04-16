@@ -15,7 +15,8 @@ RUN apk add --no-cache \
     tzdata \
     gettext \
     sed \
-    grep
+    grep \
+    curl
 
 # системные директории
 RUN mkdir -p \
@@ -119,6 +120,8 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo 'export HOSTNAME=${HOSTNAME:-mail.$DOMAIN}' >> /etc/init.sh && \
     echo 'export RELAYHOST=${RELAYHOST:-[smtp.gmail.com]:587}' >> /etc/init.sh && \
     echo 'export GMAIL_AUTH=${GMAIL_AUTH}' >> /etc/init.sh && \
+    echo 'export CF_TOKEN=${CF_TOKEN}' >> /etc/init.sh && \
+    echo 'export CF_ZONE_ID=${CF_ZONE_ID}' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'echo "Initializing mail stack for domain: $DOMAIN"' >> /etc/init.sh && \
     echo 'echo "Hostname: $HOSTNAME"' >> /etc/init.sh && \
@@ -141,6 +144,29 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    echo "=== DKIM DNS record for $DOMAIN ==="' >> /etc/init.sh && \
     echo '    cat mail.txt' >> /etc/init.sh && \
     echo '    echo "=================================="' >> /etc/init.sh && \
+    echo '' >> /etc/init.sh && \
+    echo '    # Обновление DKIM в Cloudflare' >> /etc/init.sh && \
+    echo '    if [ ! -z "$CF_TOKEN" ] && [ ! -z "$CF_ZONE_ID" ]; then' >> /etc/init.sh && \
+    echo '        DKIM_VALUE=$(grep -o "p=[^\"]*" /etc/opendkim/keys/$DOMAIN/mail.txt | head -1)' >> /etc/init.sh && \
+    echo '        DKIM_CONTENT="v=DKIM1; k=rsa; $DKIM_VALUE"' >> /etc/init.sh && \
+    echo '        echo "Updating Cloudflare DNS for $DOMAIN"' >> /etc/init.sh && \
+    echo '        RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?name=mail._domainkey.$DOMAIN&type=TXT" \' >> /etc/init.sh && \
+    echo '            -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
+    echo '            -H "Content-Type: application/json" | grep -o "\"id\":\"[^\"]*\"" | head -1 | cut -d"\"" -f4)' >> /etc/init.sh && \
+    echo '        if [ -n "$RECORD_ID" ]; then' >> /etc/init.sh && \
+    echo '            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$RECORD_ID" \' >> /etc/init.sh && \
+    echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
+    echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
+    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\",\"ttl\":3600}" > /dev/null' >> /etc/init.sh && \
+    echo '            echo "DKIM record updated in Cloudflare"' >> /etc/init.sh && \
+    echo '        else' >> /etc/init.sh && \
+    echo '            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \' >> /etc/init.sh && \
+    echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
+    echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
+    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\",\"ttl\":3600}" > /dev/null' >> /etc/init.sh && \
+    echo '            echo "DKIM record created in Cloudflare"' >> /etc/init.sh && \
+    echo '        fi' >> /etc/init.sh && \
+    echo '    fi' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo '# Создание сокета для OpenDKIM' >> /etc/init.sh && \
@@ -156,14 +182,10 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '/usr/sbin/opendkim -f -x /etc/opendkim.conf &' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'if [ ! -z "$GMAIL_AUTH" ]; then' >> /etc/init.sh && \
-    echo '    # Создаём временный файл с паролем' >> /etc/init.sh && \
     echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /tmp/sasl_passwd' >> /etc/init.sh && \
     echo '    chmod 600 /tmp/sasl_passwd' >> /etc/init.sh && \
-    echo '    # Создаём хешированную базу данных' >> /etc/init.sh && \
     echo '    postmap lmdb:/tmp/sasl_passwd' >> /etc/init.sh && \
-    echo '    # Копируем базу в нужное место' >> /etc/init.sh && \
     echo '    cp /tmp/sasl_passwd.lmdb /etc/postfix/sasl_passwd.lmdb' >> /etc/init.sh && \
-    echo '    # Удаляем временный файл с открытым паролем' >> /etc/init.sh && \
     echo '    rm -f /tmp/sasl_passwd /tmp/sasl_passwd.lmdb' >> /etc/init.sh && \
     echo '    postconf -e smtp_sasl_password_maps=lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    echo "Gmail SASL auth configured"' >> /etc/init.sh && \

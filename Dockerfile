@@ -70,9 +70,31 @@ plugin {
 }
 EOF
 
+# Настройка Rspamd (спам-фильтр)
+RUN cat > /etc/rspamd/local.d/actions.conf << 'EOF'
+reject = 15;
+add_header = 6;
+spam = 6;
+EOF
+
+# Настройка Sieve для перемещения спама в Junk
+RUN mkdir -p /etc/dovecot/sieve && \
+    cat > /etc/dovecot/sieve/default.sieve << 'EOF'
+require ["fileinto"];
+if header :contains "X-Spam" "Yes" {
+    fileinto "Junk";
+    stop;
+}
+EOF
+RUN sievec /etc/dovecot/sieve/default.sieve
+
+# Настройка автоочистки Trash и Junk
 RUN cat > /etc/dovecot/conf.d/15-mailboxes.conf << 'EOF'
 namespace inbox {
   mailbox Trash {
+    autoexpunge = 30d
+  }
+  mailbox Junk {
     autoexpunge = 30d
   }
 }

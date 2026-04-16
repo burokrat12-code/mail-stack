@@ -10,8 +10,6 @@ RUN apk add --no-cache \
     supervisor \
     bash \
     ca-certificates \
-    opendkim \
-    opendkim-utils \
     tzdata \
     gettext \
     sed \
@@ -32,10 +30,10 @@ RUN mkdir -p \
     /var/spool/postfix \
     /var/spool/postfix/private \
     /var/mail/vhosts/default.local/user \
-    /etc/opendkim/keys/template \
     /etc/dovecot/conf.d \
     /etc/postfix/templates \
-    /etc/dovecot.orig
+    /etc/dovecot.orig \
+    /etc/opendkim/keys/cargo-port.eu
 
 # пользователи
 RUN addgroup -S mail && adduser -S mail -G mail || true \
@@ -73,10 +71,23 @@ RUN echo 'mail_plugins = $mail_plugins quota' > /etc/dovecot/conf.d/90-quota.con
     echo '  quota_rule2 = Trash:storage=+300M' >> /etc/dovecot/conf.d/90-quota.conf && \
     echo '}' >> /etc/dovecot/conf.d/90-quota.conf
 
-# Настройка Rspamd (спам-фильтр)
+# Настройка Rspamd (спам-фильтр и DKIM)
 RUN echo 'reject = 15;' > /etc/rspamd/local.d/actions.conf && \
     echo 'add_header = 6;' >> /etc/rspamd/local.d/actions.conf && \
     echo 'spam = 6;' >> /etc/rspamd/local.d/actions.conf
+
+# Настройка DKIM в Rspamd
+RUN mkdir -p /etc/rspamd/local.d && \
+    echo 'enabled = true;' > /etc/rspamd/local.d/dkim_signing.conf && \
+    echo 'sign_authenticated = true;' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo 'sign_local = true;' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo 'domain {' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '  cargo-port.eu {' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '    path = "/etc/opendkim/keys/cargo-port.eu/mail.private";' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '    selector = "mail";' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '  }' >> /etc/rspamd/local.d/dkim_signing.conf && \
+    echo '}' >> /etc/rspamd/local.d/dkim_signing.conf
 
 # Настройка Sieve для перемещения спама в Junk
 RUN mkdir -p /etc/dovecot/sieve && \
@@ -158,19 +169,12 @@ RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
     echo 'home_mailbox = Maildir/' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'mailbox_transport = lmtp:unix:private/lmtp' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'smtpd_milters = inet:localhost:8891,inet:localhost:11332' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'non_smtpd_milters = inet:localhost:8891' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'smtpd_milters = inet:localhost:11332' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'non_smtpd_milters = ' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'compatibility_level = 3.9' >> /etc/postfix/templates/main.cf.tpl
 
-# Шаблон opendkim.conf
-RUN echo 'Domain                  ${DOMAIN}' > /etc/opendkim.conf.tpl && \
-    echo 'KeyFile                 /etc/opendkim/keys/${DOMAIN}/mail.private' >> /etc/opendkim.conf.tpl && \
-    echo 'Selector                mail' >> /etc/opendkim.conf.tpl && \
-    echo 'Socket                  inet:8891@localhost' >> /etc/opendkim.conf.tpl && \
-    echo 'UserID                  root' >> /etc/opendkim.conf.tpl
-
-# Скрипт инициализации с export
+# Скрипт инициализации
 RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'export DOMAIN=${DOMAIN:-cargo-port.eu}' >> /etc/init.sh && \
@@ -191,8 +195,8 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'envsubst < /etc/postfix/templates/main.cf.tpl > /etc/postfix/main.cf' >> /etc/init.sh && \
-    echo 'envsubst < /etc/opendkim.conf.tpl > /etc/opendkim.conf' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
+    echo '# Генерация DKIM ключей если нет' >> /etc/init.sh && \
     echo 'if [ ! -f /etc/opendkim/keys/$DOMAIN/mail.private ]; then' >> /etc/init.sh && \
     echo '    echo "Generating DKIM keys for $DOMAIN"' >> /etc/init.sh && \
     echo '    mkdir -p /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \
@@ -201,28 +205,28 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    echo "=== DKIM DNS record for $DOMAIN ==="' >> /etc/init.sh && \
     echo '    cat mail.txt' >> /etc/init.sh && \
     echo '    echo "=================================="' >> /etc/init.sh && \
+    echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
-    echo '    # Обновление DKIM в Cloudflare' >> /etc/init.sh && \
-    echo '    if [ ! -z "$CF_TOKEN" ] && [ ! -z "$CF_ZONE_ID" ]; then' >> /etc/init.sh && \
-    echo '        DKIM_VALUE=$(grep -o "p=[^\"]*" /etc/opendkim/keys/$DOMAIN/mail.txt | head -1)' >> /etc/init.sh && \
-    echo '        DKIM_CONTENT="v=DKIM1; k=rsa; $DKIM_VALUE"' >> /etc/init.sh && \
-    echo '        echo "Updating Cloudflare DNS for $DOMAIN"' >> /etc/init.sh && \
-    echo '        RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?name=mail._domainkey.$DOMAIN&type=TXT" \' >> /etc/init.sh && \
+    echo '# Обновление DKIM в Cloudflare (опционально)' >> /etc/init.sh && \
+    echo 'if [ ! -z "$CF_TOKEN" ] && [ ! -z "$CF_ZONE_ID" ]; then' >> /etc/init.sh && \
+    echo '    DKIM_VALUE=$(grep -o "p=[^\"]*" /etc/opendkim/keys/$DOMAIN/mail.txt | head -1)' >> /etc/init.sh && \
+    echo '    DKIM_CONTENT="v=DKIM1; k=rsa; $DKIM_VALUE"' >> /etc/init.sh && \
+    echo '    echo "Updating Cloudflare DNS for $DOMAIN"' >> /etc/init.sh && \
+    echo '    RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?name=mail._domainkey.$DOMAIN&type=TXT" \' >> /etc/init.sh && \
+    echo '        -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
+    echo '        -H "Content-Type: application/json" | grep -o "\"id\":\"[^\"]*\"" | head -1 | cut -d"\"" -f4)' >> /etc/init.sh && \
+    echo '    if [ -n "$RECORD_ID" ]; then' >> /etc/init.sh && \
+    echo '        curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$RECORD_ID" \' >> /etc/init.sh && \
     echo '            -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
-    echo '            -H "Content-Type: application/json" | grep -o "\"id\":\"[^\"]*\"" | head -1 | cut -d"\"" -f4)' >> /etc/init.sh && \
-    echo '        if [ -n "$RECORD_ID" ]; then' >> /etc/init.sh && \
-    echo '            curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$RECORD_ID" \' >> /etc/init.sh && \
-    echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
-    echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
-    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
-    echo '            echo "DKIM record updated in Cloudflare"' >> /etc/init.sh && \
-    echo '        else' >> /etc/init.sh && \
-    echo '            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \' >> /etc/init.sh && \
-    echo '                -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
-    echo '                -H "Content-Type: application/json" \' >> /etc/init.sh && \
-    echo '                --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
-    echo '            echo "DKIM record created in Cloudflare"' >> /etc/init.sh && \
-    echo '        fi' >> /etc/init.sh && \
+    echo '            -H "Content-Type: application/json" \' >> /etc/init.sh && \
+    echo '            --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
+    echo '        echo "DKIM record updated in Cloudflare"' >> /etc/init.sh && \
+    echo '    else' >> /etc/init.sh && \
+    echo '        curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" \' >> /etc/init.sh && \
+    echo '            -H "Authorization: Bearer $CF_TOKEN" \' >> /etc/init.sh && \
+    echo '            -H "Content-Type: application/json" \' >> /etc/init.sh && \
+    echo '            --data "{\"type\":\"TXT\",\"name\":\"mail._domainkey.$DOMAIN\",\"content\":\"$DKIM_CONTENT\"}" > /dev/null' >> /etc/init.sh && \
+    echo '        echo "DKIM record created in Cloudflare"' >> /etc/init.sh && \
     echo '    fi' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
@@ -250,8 +254,6 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo 'chmod 755 /etc /etc/opendkim /etc/opendkim/keys' >> /etc/init.sh && \
     echo 'chmod 755 /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \
     echo 'chmod 600 /etc/opendkim/keys/$DOMAIN/mail.private' >> /etc/init.sh && \
-    echo '' >> /etc/init.sh && \
-    echo '/usr/sbin/opendkim -f -x /etc/opendkim.conf &' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'if [ ! -z "$GMAIL_AUTH" ]; then' >> /etc/init.sh && \
     echo '    echo "$RELAYHOST    $GMAIL_AUTH" > /tmp/sasl_passwd' >> /etc/init.sh && \

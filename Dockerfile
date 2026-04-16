@@ -15,7 +15,9 @@ RUN apk add --no-cache \
     sed \
     grep \
     curl \
-    fail2ban
+    fail2ban \
+    opendkim \
+    opendkim-utils
 
 # Настройка часового пояса
 ENV TZ=Europe/Moscow

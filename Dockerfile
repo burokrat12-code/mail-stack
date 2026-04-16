@@ -155,8 +155,8 @@ RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_tls_security_level = may' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_tls_auth_only = no' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'smtpd_tls_cert_file = /etc/postfix/certs/${DOMAIN}.crt' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'smtpd_tls_key_file = /etc/postfix/certs/${DOMAIN}.key' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'smtpd_tls_cert_file = /etc/postfix/certs/${HOSTNAME}.crt' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'smtpd_tls_key_file = /etc/postfix/certs/${HOSTNAME}.key' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_sasl_auth_enable = yes' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'smtpd_sasl_type = dovecot' >> /etc/postfix/templates/main.cf.tpl && \

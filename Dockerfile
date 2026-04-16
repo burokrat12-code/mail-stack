@@ -15,9 +15,7 @@ RUN apk add --no-cache \
     sed \
     grep \
     curl \
-    fail2ban \
-    opendkim \
-    opendkim-utils
+    fail2ban
 
 # Настройка часового пояса
 ENV TZ=Europe/Moscow
@@ -35,7 +33,8 @@ RUN mkdir -p \
     /etc/dovecot/conf.d \
     /etc/postfix/templates \
     /etc/dovecot.orig \
-    /etc/opendkim/keys/cargo-port.eu
+    /etc/opendkim/keys/cargo-port.eu \
+    /var/log/dovecot
 
 # пользователи
 RUN addgroup -S mail && adduser -S mail -G mail || true \
@@ -112,18 +111,28 @@ RUN echo 'namespace inbox {' > /etc/dovecot/conf.d/15-mailboxes.conf && \
 
 # Настройка fail2ban для почты
 RUN mkdir -p /etc/fail2ban/jail.d && \
-    echo '[DEFAULT]' > /etc/fail2ban/jail.d/local.conf && \
-    echo 'bantime = 3600' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'findtime = 600' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'maxretry = 5' >> /etc/fail2ban/jail.d/local.conf && \
-    echo '' >> /etc/fail2ban/jail.d/local.conf && \
-    echo '[dovecot]' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'enabled = true' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'logpath = /var/log/dovecot/*.log' >> /etc/fail2ban/jail.d/local.conf && \
-    echo '' >> /etc/fail2ban/jail.d/local.conf && \
-    echo '[postfix-sasl]' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'enabled = true' >> /etc/fail2ban/jail.d/local.conf && \
-    echo 'logpath = /var/log/mail.log' >> /etc/fail2ban/jail.d/local.conf
+    touch /var/log/mail.log /var/log/dovecot/dovecot.log && \
+    chmod 644 /var/log/mail.log /var/log/dovecot/dovecot.log && \
+    cat > /etc/fail2ban/jail.local << 'EOF'
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+
+[sshd]
+enabled = false
+
+[sshd-ddos]
+enabled = false
+
+[dovecot]
+enabled = true
+logpath = /var/log/dovecot/dovecot.log
+
+[postfix-sasl]
+enabled = true
+logpath = /var/log/mail.log
+EOF
 
 # bootstrap базовой структуры
 RUN mkdir -p \

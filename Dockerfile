@@ -16,7 +16,8 @@ RUN apk add --no-cache \
     gettext \
     sed \
     grep \
-    curl
+    curl \
+    fail2ban
 
 # системные директории
 RUN mkdir -p \
@@ -91,6 +92,21 @@ RUN echo 'namespace inbox {' > /etc/dovecot/conf.d/15-mailboxes.conf && \
     echo '    autoexpunge = 30d' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
     echo '  }' >> /etc/dovecot/conf.d/15-mailboxes.conf && \
     echo '}' >> /etc/dovecot/conf.d/15-mailboxes.conf
+
+# Настройка fail2ban для почты
+RUN mkdir -p /etc/fail2ban/jail.d && \
+    echo '[DEFAULT]' > /etc/fail2ban/jail.d/local.conf && \
+    echo 'bantime = 3600' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'findtime = 600' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'maxretry = 5' >> /etc/fail2ban/jail.d/local.conf && \
+    echo '' >> /etc/fail2ban/jail.d/local.conf && \
+    echo '[dovecot]' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'enabled = true' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'logpath = /var/log/dovecot/*.log' >> /etc/fail2ban/jail.d/local.conf && \
+    echo '' >> /etc/fail2ban/jail.d/local.conf && \
+    echo '[postfix-sasl]' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'enabled = true' >> /etc/fail2ban/jail.d/local.conf && \
+    echo 'logpath = /var/log/mail.log' >> /etc/fail2ban/jail.d/local.conf
 
 # bootstrap базовой структуры
 RUN mkdir -p \
@@ -225,6 +241,12 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '    rm -f /tmp/sasl_passwd /tmp/sasl_passwd.lmdb' >> /etc/init.sh && \
     echo '    postconf -e smtp_sasl_password_maps=lmdb:/etc/postfix/sasl_passwd' >> /etc/init.sh && \
     echo '    echo "Gmail SASL auth configured"' >> /etc/init.sh && \
+    echo 'fi' >> /etc/init.sh && \
+    echo '' >> /etc/init.sh && \
+    echo '# Запуск fail2ban' >> /etc/init.sh && \
+    echo 'if [ ! -f /var/run/fail2ban/fail2ban.sock ]; then' >> /etc/init.sh && \
+    echo '    fail2ban-client -x start' >> /etc/init.sh && \
+    echo '    echo "fail2ban started"' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'postfix reload' >> /etc/init.sh && \

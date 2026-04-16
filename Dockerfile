@@ -156,8 +156,8 @@ RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
     echo 'home_mailbox = Maildir/' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'mailbox_transport = lmtp:unix:private/lmtp' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'smtpd_milters = unix:opendkim/opendkim.sock, inet:localhost:11332' >> /etc/postfix/templates/main.cf.tpl && \
-    echo 'non_smtpd_milters = unix:opendkim/opendkim.sock' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'smtpd_milters = inet:localhost:8891,inet:localhost:11332' >> /etc/postfix/templates/main.cf.tpl && \
+    echo 'non_smtpd_milters = inet:localhost:8891' >> /etc/postfix/templates/main.cf.tpl && \
     echo '' >> /etc/postfix/templates/main.cf.tpl && \
     echo 'compatibility_level = 3.9' >> /etc/postfix/templates/main.cf.tpl
 
@@ -165,8 +165,7 @@ RUN echo 'myhostname = ${HOSTNAME}' > /etc/postfix/templates/main.cf.tpl && \
 RUN echo 'Domain                  ${DOMAIN}' > /etc/opendkim.conf.tpl && \
     echo 'KeyFile                 /etc/opendkim/keys/${DOMAIN}/mail.private' >> /etc/opendkim.conf.tpl && \
     echo 'Selector                mail' >> /etc/opendkim.conf.tpl && \
-    echo 'Socket                  local:/var/spool/postfix/opendkim/opendkim.sock' >> /etc/opendkim.conf.tpl && \
-    echo 'UMask                   002' >> /etc/opendkim.conf.tpl && \
+    echo 'Socket                  inet:8891@localhost' >> /etc/opendkim.conf.tpl && \
     echo 'UserID                  root' >> /etc/opendkim.conf.tpl
 
 # Скрипт инициализации с export
@@ -224,12 +223,6 @@ RUN echo '#!/bin/sh' > /etc/init.sh && \
     echo '        fi' >> /etc/init.sh && \
     echo '    fi' >> /etc/init.sh && \
     echo 'fi' >> /etc/init.sh && \
-    echo '' >> /etc/init.sh && \
-    echo '# Создание сокета для OpenDKIM' >> /etc/init.sh && \
-    echo 'mkdir -p /var/spool/postfix/opendkim' >> /etc/init.sh && \
-    echo 'chown opendkim:opendkim /var/spool/postfix/opendkim' >> /etc/init.sh && \
-    echo 'chmod 750 /var/spool/postfix/opendkim' >> /etc/init.sh && \
-    echo 'usermod -aG opendkim postfix' >> /etc/init.sh && \
     echo '' >> /etc/init.sh && \
     echo 'chmod 755 /etc /etc/opendkim /etc/opendkim/keys' >> /etc/init.sh && \
     echo 'chmod 755 /etc/opendkim/keys/$DOMAIN' >> /etc/init.sh && \
